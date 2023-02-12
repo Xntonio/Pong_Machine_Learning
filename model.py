@@ -8,13 +8,18 @@ class Linear_QNet(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super().__init__()
         self.linear1 = nn.Linear(input_size, hidden_size)
-        self.linear2 = nn.Linear(hidden_size, output_size)
+        self.relu=nn.ReLU()
+        self.linear2 = nn.Linear(hidden_size, hidden_size)
+        self.linear3=nn.Linear(hidden_size, output_size)
         #self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
-        x = F.relu(self.linear1(x))
+        x=self.linear1(x)
+        x=self.relu(x)
         x = self.linear2(x)
-        #x = self.sigmoid(x)
+        x=self.relu(x)
+        x=self.linear3(x)
+        #x=self.sigmoid(x)
         return x
 
     def save(self, file_name='model.pth'):
@@ -33,8 +38,8 @@ class QTrainer:
         self.model = model
         self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
         self.criterion = nn.MSELoss()
-        #self.criterion = nn.BCEWithLogitsLoss()
-
+        #self.criterion = nn.BCELoss()
+        
 
     def train_step(self, state, action, reward, next_state, done):
         state = torch.tensor(state, dtype=torch.float)
@@ -50,41 +55,29 @@ class QTrainer:
             action = torch.unsqueeze(action, 0)
             reward = torch.unsqueeze(reward, 0)
             done = (done, )
-
-        # 1: predicted Q values with current state
-        pred = self.model(state)
-        #pred = pred[0]
-        #print("PRED:", int(pred.item()))
-        # if pred.shape == (1,1):
-        #     print("PRED:", int(pred.item()))
-        # else:
-        #     print("PRED:", pred)
+        output=self.model(state)
+        target=output.clone()
+        #target=reward[:-1]+self.gamma*self.model(next_state).max()
         
-        #pred = torch.round(self.model(state))
-        #pred = torch.where(self.model(state)>=0.5,torch.tensor(1,dtype=torch.float),torch.tensor(0,dtype=torch.float))
+        #for idx in range(len(done)):
+        #    Q_new = reward[idx]
+        #    if not done[idx]:
+        #        Q_new = reward[idx] + self.gamma * torch.max(self.model(next_state[idx]))
+        #    target[idx] = Q_new
+  
 
-
-        target = pred.clone()
-        # for idx in range(len(done)):
-        #     Q_new = reward[idx]
-        #     if not done[idx]:
-        #         Q_new = reward[idx] + self.gamma * torch.max(self.model(next_state[idx]))
-                
-        #     target = Q_new
-            #target[idx][torch.argmax(action[idx]).item()] = Q_new
         for idx in range(len(done)):
             Q_new = reward[idx]
             if not done[idx]:
                 Q_new = reward[idx] + self.gamma * torch.max(self.model(next_state[idx]))
             target[idx] = Q_new
-    
-        # 2: Q_new = r + y * max(next_predicted Q value) -> only do this if not done
-        # pred.clone()
-        # preds[argmax(action)] = Q_new
-        self.optimizer.zero_grad()
-        loss = self.criterion(target, pred)
-        loss.backward()
 
+        # 1: predicted Q values with current state
+        self.optimizer.zero_grad()
+        loss = self.criterion(target, output)
+
+        #loss = self.criterion(target, output)
+        loss.backward()
         self.optimizer.step()
 
 
