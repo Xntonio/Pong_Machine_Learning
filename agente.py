@@ -17,7 +17,7 @@ class Agent:
         self.epsilon = 0 # randomness
         self.gamma = 0.5 # discount rate
         self.memory = deque(maxlen=MAX_MEMORY) # popleft()
-        self.model = Linear_QNet(3, 256, 1)
+        self.model = Linear_QNet(3, 64, 2)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
         game = PongGame()
 
@@ -46,31 +46,37 @@ class Agent:
 
     def get_action(self, state):
         # random moves: tradeoff exploration / exploitation
-        self.epsilon = 100 - self.n_games
-        #print("EPS:", self.epsilon)
+        #self.epsilon = 100 - self.n_games
+        #movimientos random/ exploracion y explotacion
+        self.epsion=max(0.01,0.9-0.05*self.n_games)
+
         final_move = [0]
-        if random.randint(0, 100) < self.epsilon:
+
+        if random.uniform(0, 1) < self.epsilon:
             move = 0
             final_move[move] = random.randint(0, 1)
-            #print("ENTTRE 1")
         else:
             state0 = torch.tensor(state, dtype=torch.float)
-            prediction = self.model(state0)
-            if prediction.shape == (1,1):
-                fm = random.randint(0,1)
-                #print("**********")
+            prediction = self.model(state0).detach().numpy()
+            action = np.argmax(prediction)
+            final_move[0] = action
+        return final_move
+        
+        #if random.randint(0, 100) < self.epsilon:
+        #    move = 0
+        #    final_move[move] = random.randint(0, 1)
+        #    #print("ENTTRE 1")
+        #else:
+        #    state0 = torch.tensor(state, dtype=torch.float)
+        #    prediction = self.model(state0)
+        #    if prediction[0] < prediction[1]:
+        #        fm=1
+        #        print("Prediction",prediction)
+        #    else:
+        #        fm=1
+        #        print("Prediction",prediction)
 
-            else:
-                move = int(prediction.item())
-                if move <=0:
-                    fm = 0
-                else:
-                    fm = 1
-                #print("-----------",prediction.item())
-            #print("prediction",fm)
-                
-            #move = torch.argmax(prediction).item()
-            final_move[0] = fm
+        #    final_move[0] = fm
            
 
         # if final_move[0] == 0:
