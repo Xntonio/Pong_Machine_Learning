@@ -1,35 +1,52 @@
 import pygame
+from math import pi, sin, cos
+
 from numpy import random
 from collections import namedtuple
 import time
-#from agente import Agent 
+from random import uniform
+
 pygame.init()
+
 font = pygame.font.Font('arial.ttf', 25)
 Point = namedtuple('Point','x,y')
 
-BLOCK_SIZE = 110
-SPEED = 1200
-width = 800
-height = 420
-padd_w = 20
+HEIGHT = 420
+WIDTH = 800
+
+PADD_H= 200
+PADD_W = 20
+PADD_V=1
+
+PADD_X=WIDTH-PADD_W
+PADD_Y=HEIGHT / 2
+
+#direccion de la pelota
+ball_dir_x=1
+ball_dir_y=1
+
+BALL_SIZE=20
+SCORE=0
+GAME_OVER=0
+
+##
 dir = True
 reward = 0
-
+SPEED=12000
+##
 
 class PongGame:
-
     def __init__(self):
-        self.width = width
-        self.height = height
+        self.height = HEIGHT
+        self.width = WIDTH
+        
         self.display = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption('Pong')
-        self.clock = pygame.time.Clock()
         self.ball = Ball()
         self.paddle = Paddle()
+        self.clock = pygame.time.Clock()
         self.reset()
-        global  dir
-        dir = bool(random.rand(0,1))
-        self.bound_m =0 
+  
         self.game_over = False
         
         
@@ -39,40 +56,36 @@ class PongGame:
         self.score = 0
         self.game_over = False
 
-    def step(self,action): #action
-        global dir
-        global reward
+    def step(self, action): #action
+
         if action == [1]:
               dir = True
         elif action ==[0]:
-             dir = False
-                            
+            dir = False
+        
         self.paddle.move(dir)
         self.ball.move()
-        score, game_over = self.update()
-       
         
-        if score > self.bound_m:
-            reward = 10
-            self.bound_m = score
+        score, game_over=self.update()
         self.clock.tick(SPEED)
-        #state = self.get_state()
-        #reward = self.get_reward()
-        done = game_over
+        reward=0
+
+        if score > 0:
+            reward=10
+        done=game_over
         if done:
-            reward = -10
-        
-        return reward, done, score
+            reward=-10
+
+        #self.update()
+        return reward,done,score
 
     def update(self):
-        global padd_w
-        
+
         self.display.fill((0,0,0))
         
-        for pt in self.paddle.shape:
-            pygame.draw.rect(self.display, (0,150,255),pygame.Rect(self.paddle.x,self.paddle.y, padd_w,BLOCK_SIZE))
+        pygame.draw.rect(self.display, (255,255,255),(self.paddle.padd_x,self.paddle.padd_y, PADD_W,PADD_H))
         
-        pygame.draw.circle(self.display,(0,100,255),(self.ball.x,self.ball.y),12)
+        pygame.draw.circle(self.display,(255,255,255),(self.ball.ball_x,self.ball.ball_y), radius=10)
         
         if not self.ball.fall():
             self.score = self.ball.bounce(self.paddle.collision(self.ball))
@@ -80,15 +93,15 @@ class PongGame:
             self.game_over = True
             
             
-        text = font.render(f"Score:{self.score}, X:{self.ball.x}, Y:{self.ball.y},P:{self.paddle.y}".format(self.score,self.ball.x,self.ball.y,self.paddle.y),True,(0,255,0))
+        text = font.render(f"Score:{self.score}, X:{self.ball.ball_x}, Y:{self.ball.ball_y},P:{self.paddle.padd_y}".format(self.score,self.ball.ball_x,self.ball.ball_y,self.paddle.padd_y),True,(0,255,0))
         self.display.blit(text,[0,0])
         pygame.display.flip()
-        #time.sleep(500)
-        
+
         return self.score, self.game_over
     
     def get_st(self):
-        return self.ball.x, self.ball.y, self.paddle.y
+        #print(self.ball.ball_x, self.ball.ball_y, self.paddle.padd_y)
+        return self.ball.ball_x, self.ball.ball_y, self.paddle.padd_y
 
     def reset(self):
         self.ball.reset()
@@ -99,81 +112,93 @@ class PongGame:
 class Ball:
 
     def __init__(self):
-        self.x = random.rand(0,150)
-        self.y = random.rand(400)
-        self.w = width
-        self.h = height
-        self.speed_x = 18
-        self.speed_y = 23
+        self.ball_x = random.randint(0,150)
+        self.ball_y = random.randint(400)
+        self.width = WIDTH
+        self.height = HEIGHT
+        #self.direction = uniform(5 * pi / 6, 7 * pi / 6)
+        #self.ball_dir_x = int(2 * cos(self.direction))
+        #self.ball_dir_y = int(2 * sin(self.direction))
+
+        self.ball_dir_x=1
+        self.ball_dir_y=1
+
         self.score = 0
-        #self.pos_ball = Point 
+
 
     def move(self):
-        self.x += self.speed_x
-        self.y += self.speed_y
+        self.ball_x += self.ball_dir_x
+        self.ball_y += self.ball_dir_y
 
     def bounce(self, collision):
-        if self.x <= 0:
-            self.speed_x = -self.speed_x
-        if self.y <=0 or self.y >= self.h:
-            self.speed_y = -self.speed_y
+        global padd_h
+        # Verificar si la pelota ha tocado la raqueta
         if collision:
-            self.speed_x = -self.speed_x
             self.score += 1
+            self.ball_dir_x = -self.ball_dir_x
+
+        # Verificar si la pelota ha tocado las paredes
+        if self.ball_y <= 0 or self.ball_y >= self.height:
+            self.ball_dir_y = -self.ball_dir_y
+
+        if self.ball_x <= 0:
+            self.ball_dir_x=-self.ball_dir_x
         return self.score
     
     def fall(self):
-        if self.x >= self.w+BLOCK_SIZE:
+        if self.ball_x >= self.w:
             return True
         else:
             return False
         
     def reset(self):
-        self.w = width
-        self.h = height
-        self.x = random.randint(0,self.w/4) #0
-        self.y = random.randint(0,self.h) #300
+        self.w = self.width
+        self.h = self.height
+        self.ball_x = random.randint(0,self.w/4) #0
+        self.ball_y = random.randint(0,self.h) #300
         self.score = 0
 
 class Paddle:
 
     def __init__(self):
-        self.w = width
-        self.h = height
-        self.x = width-BLOCK_SIZE
-        self.y = 350
+        self.padd_h=PADD_H
+        self.padd_w=PADD_W
+        self.width= WIDTH
+        self.height= HEIGHT
         global dir
-        
-        self.shape = [Point(self.x,self.y)]
-        self.speed = 20
+
+        #coordenadas de la raqueta
+        self.padd_x=self.width - self.padd_w
+        self.padd_y=self.height - self.padd_h        
+        self.pad_speed = 1
 
     def move(self,dir):
-        if(self.y <= 0):
-            self.y = 0+BLOCK_SIZE
-        if(self.y+BLOCK_SIZE >= self.h):
-            self.y = self.h-BLOCK_SIZE
+
+        if(self.padd_y <= 0):
+            self.padd_y = 0
+        if(self.padd_y >= self.height - self.padd_h):
+            self.padd_y = self.height - self.padd_h
             
         if dir:
-            self.y -= self.speed
+            self.padd_y -= self.pad_speed
         else:
-            self.y += self.speed
+            self.padd_y += self.pad_speed
  
         
     def collision(self, ball):
-        if self.y <= ball.y <= self.y + BLOCK_SIZE  and self.x - padd_w <= ball.x <= self.x:
-            return True
+
+        if ball.ball_y + 10 > self.padd_y and ball.ball_y < self.padd_y+self.padd_h:
+            if ball.ball_x > self.padd_x - self.padd_w//2 and ball.ball_x < self.padd_x+self.padd_w//2:
+                return True
         return False
-    
+
     def reset(self):
-        self.w = width
-        self.h = height
-        self.x = width-30
-        self.y = random.randint(0,self.w)
+        self.padd_x = self.width-30
+        self.padd_y = random.randint(0,self.width)
 
 
 if __name__ == '__main__':
     pong = PongGame()
-    
     while True:
         done = pong.step()
         
