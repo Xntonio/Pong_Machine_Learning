@@ -29,7 +29,7 @@ BALL_SIZE=20
 GAME_OVER=0
 
 ##
-dir = True
+DIRECCION = True
 reward = 0
 SPEED=400
 ##
@@ -40,8 +40,12 @@ class PongGame:
         self.width = WIDTH
         self.display = pygame.display.set_mode((self.width, self.height))
         pygame.display.set_caption('Pong')
+        self.direccion=DIRECCION
         self.ball = Ball()
         self.paddle = Paddle()
+
+        #self.direccion=self.dir
+
         self.time = time.time()
         self.clock = pygame.time.Clock()
         self.max_score = 0
@@ -52,13 +56,16 @@ class PongGame:
 
     def step(self, action): #action
         #action from agent
-        if action == [1]:
-              dir = True
-        elif action ==[0]:
+        if action == 1:
+            self.direccion=True  
+            dir = True
+        elif action ==0:
+            self.direccion=False
             dir = False
         
         #move ball and paddle
-        self.paddle.move(dir)
+
+        self.paddle.move(action)
         self.ball.move()
         
         #check if gameover
@@ -95,7 +102,10 @@ class PongGame:
         pygame.display.flip()
     
     def get_st(self):
-        return self.ball.ball_x, self.ball.ball_y, self.paddle.padd_y
+        #print("ball x", self.ball.ball_x)
+        #print("ball y", self.ball.ball_y)
+        #print("ball p", self.paddle.padd_y)
+        return self.ball.ball_x, self.ball.ball_y, (self.paddle.padd_y+(self.paddle.padd_h/2)), self.direccion
 
     def reset(self):
         self.ball.reset()
@@ -108,6 +118,7 @@ class Ball:
 
     def __init__(self):
         self.ball_x = random.randint(0,150)
+        self.ball_x=1
         self.ball_y = random.randint(400)
         self.width = WIDTH
         self.height = HEIGHT
@@ -129,6 +140,9 @@ class Ball:
 
         if self.ball_x <= 0:
             self.ball_dir_x=-self.ball_dir_x
+        
+        self.headB=Point(self.ball_dir_x,self.ball_dir_y)
+
     
     def fall(self):
         if self.ball_x >= self.w:
@@ -149,7 +163,7 @@ class Paddle:
         self.padd_w=PADD_W
         self.width= WIDTH
         self.height= HEIGHT
-        global dir
+        global direccion
 
         #coordenadas de la raqueta
         self.padd_x=self.width - self.padd_w
@@ -160,13 +174,23 @@ class Paddle:
 
         if(self.padd_y <= 0):
             self.padd_y = 0
+            #print("padd_y",self.padd_y)
         if(self.padd_y >= self.height - self.padd_h):
             self.padd_y = self.height - self.padd_h
-            
+            #print("padd_y",self.padd_y)
+
+        #print(direccion,"direccion")
+
+        self.direccion=dir
+        
         if dir:
             self.padd_y -= self.pad_speed
         else:
             self.padd_y += self.pad_speed
+
+        self.headP=Point(self.padd_x,self.padd_y)
+
+
  
         
     def collision(self, ball):
@@ -179,8 +203,8 @@ class Paddle:
         return False
 
     def reset(self):
-        self.padd_x = self.width-30
-        self.padd_y = random.randint(0,self.width)
+        self.padd_y = self.width-30
+        #self.padd_y = random.randint(0,self.width)
 
 
 if __name__ == '__main__':

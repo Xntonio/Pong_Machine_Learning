@@ -15,16 +15,35 @@ class Agent:
     def __init__(self):
         self.n_games = 0
         self.epsilon = 0 # randomness
-        self.gamma = 0.2 # discount rate
+        self.gamma = 0.9 # discount rate
+
         self.memory = deque(maxlen=MAX_MEMORY) # popleft()
-        self.model = Linear_QNet(3, 64, 1)
+        self.model = Linear_QNet(6, 256, 2)
         self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
-        game = PongGame()
+        #game = PongGame()
 
 
     def get_state(self, game):
-        ball_x, ball_y, paddle_y = game.get_st()
-        state = [ball_x, ball_y, paddle_y]
+        ball_x, ball_y, paddle_y, direccion = game.get_st()
+        #print("dir",dir)
+        #print(ball_x,ball_y)
+        dir_u=direccion == True
+        dir_d=direccion == False
+        #print("dir",dir_u) 
+        #dir_d=game.dir ==
+        #print(direccion)
+        paddlg=Paddle()
+        #print("hola",paddlg.collision(game.ball))
+        #print("ccc",game.ball.ball_x,game.ball.ball_y)
+        
+        state = [
+                (dir_u and paddlg.collision(game.ball)), #colision
+                (dir_d and paddlg.collision(game.ball)), #colision
+                dir_u, #direccion
+                dir_d, #direccion
+                ball_y<paddle_y, #la bola esta abajo
+                ball_y>paddle_y, #la bola esta abajo
+                ]
         return np.array(state, dtype=int)
 
     def remember(self, state, action, reward, next_state, game_over):
@@ -37,54 +56,48 @@ class Agent:
             mini_sample = self.memory
 
         states, actions, rewards, next_states, game_overs = zip(*mini_sample)
+
         self.trainer.train_step(states, actions, rewards, next_states, game_overs)
         #for state, action, reward, nexrt_state, game_over in mini_sample:
         #    self.trainer.train_step(state, action, reward, next_state, game_over)
 
     def train_short_memory(self, state, action, reward, next_state, game_over):
         self.trainer.train_step(state, action, reward, next_state, game_over)
+        #print(" - -short memory - - ")
+        #print("state ", state)
+        #print("action", action)
 
     def get_action(self, state):
         # random moves: tradeoff exploration / exploitation
-        #self.epsilon = 100 - self.n_games
         #movimientos random/ exploracion y explotacion
-        self.epsion=max(0.01,0.9-0.05*self.n_games)
+        #self.epsilon=max(0.01,0.9-0.05*self.n_games)
 
-        final_move = [0]
+        self.epsilon = 80 - self.n_games
+        final_move = 0
 
-        if random.uniform(0, 1) < self.epsilon:
-            move = 0
-            final_move[move] = random.randint(0, 1)
+        if random.uniform(0, 200) < self.epsilon:
+            final_move = random.randint(0, 1)
+            #print("aleatorio:", final_move)
         else:
             state0 = torch.tensor(state, dtype=torch.float)
-            prediction = self.model(state0).detach().numpy()
-            action = np.argmax(prediction)
-            final_move[0] = action
+            prediction = self.model(state0) #.detach().numpy()
+            #print("prediction",prediction)
+            action = torch.argmax(prediction).item()
+            max_value,max_index=torch.max(prediction,dim=0)
+            if max_index == 0:
+                final_move = 1  # acción 1
+                print("true")
+            else:
+                final_move = 0  # acción 2
+
+            print("prediction", prediction)
+            #print("action", action)
+            #print("action", action)
+            #final_move = action
+            #print("random:", final_move)
+
         return final_move
-        
-        #if random.randint(0, 100) < self.epsilon:
-        #    move = 0
-        #    final_move[move] = random.randint(0, 1)
-        #    #print("ENTTRE 1")
-        #else:
-        #    state0 = torch.tensor(state, dtype=torch.float)
-        #    prediction = self.model(state0)
-        #    if prediction[0] < prediction[1]:
-        #        fm=1
-        #        print("Prediction",prediction)
-        #    else:
-        #        fm=1
-        #        print("Prediction",prediction)
-
-        #    final_move[0] = fm
-           
-
-        # if final_move[0] == 0:
-        #     print("UP")
-        # if final_move[0] == 1:
-        #     print("DOWN")            
-        #return final_move
-
+  
 
 def train():
     plot_scores = []
@@ -96,14 +109,14 @@ def train():
     while True:
         # get old state
         state_old = agent.get_state(game)
-
+        #print("state viejo",state_old)
         # get move
         final_move = agent.get_action(state_old)
 
         # perform move and get new state
         reward, game_over, score = game.step(final_move)
         #reward = score*10
-        print("REWARD:",reward,game_over,score)
+        #print("REWARD:",reward,game_over,score)
         
         state_new = agent.get_state(game)
 
